@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "vs-token-safer",
-  "description": "Token-efficient code search for large C++/C# projects (Unreal, Visual Studio, .NET): search the codebase through an official language server's index (clangd / Roslyn) instead of grep, token-capped to file:line. No IDE required.",
+  "description": "Token-efficient tooling for large C++/C# projects (Unreal, Visual Studio, .NET): search the codebase through an official language server's index (clangd / Roslyn) instead of grep, and analyze huge editor/build logs — both token-capped to a compact output. No IDE required.",
   "owner": {
     "name": "JSungMin",
     "url": "https://github.com/JSungMin"
@@ -12,7 +12,14 @@
       "source": "./",
       "version": "0.1.0",
       "category": "development",
-      "description": "Force Claude Code to search C++/C# code through clangd/Roslyn's index instead of Bash grep, token-capped to a compact file:line list. No IDE required."
+      "description": "Force Claude Code to search C++/C# code through clangd/Roslyn's index instead of Bash grep, token-capped to a compact file:line list. No IDE required. Bundles gamedev-log-analyzer."
+    },
+    {
+      "name": "gamedev-log-analyzer",
+      "source": "./gamedev-log-analyzer",
+      "version": "0.7.0",
+      "category": "development",
+      "description": "Token-efficient game-engine & build log analysis (Unreal/Unity/Godot/MSVC-UBT-MSBuild + JSONL traces), CLI-first: parse, dedup, classify, diff runs, locate file:line, and extract decisive scalar fields over a time window. Also on npm. No IDE required."
     }
   ]
 }
