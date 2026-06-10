@@ -53,7 +53,16 @@ Visual-Studio / IDE-agnostic sibling of `rider-mcp-enforcer`. Local-only. Ships 
   clangd indexes async → `afterInit` (`backends/index.js`) opens the compile_commands TUs + nearby
   headers (cap 100) and waits for `textDocument/publishDiagnostics` before the first query. CAVEAT: a
   compile DB without include dirs → system/3rd-party headers fail to resolve → only header-free symbols
-  index; UBT-generated DBs include the paths. Real Unreal project still user-specific to run.
+  index; UBT-generated DBs include the paths. **✅ real UE 5.x project checked (clang-cl-configured):**
+  `GenerateClangDatabase` needs **`-Compiler=VisualCpp`** override — targets set up to build with clang-cl
+  otherwise fail clang-toolchain validation (`Unable to find valid <ver> C++ toolchain for Clang x64`);
+  with the override → `Result: Succeeded`, ~26k-entry DB. `clangd --check` on a game TU (~19s) resolves
+  the **full engine include graph** (engine base types + `*.generated.h` land in the index cache) →
+  caveat confirmed on real source. KNOWN LIMIT: on a UE-scale **cold** index, LSP-server queries can
+  exceed the 30s `request()` timeout — `--background-index` saturates the AST worker indexing thousands
+  of engine headers and starves the first query; the engine parses fine (`--check` proves it), but a
+  one-shot CLI query needs a warm/persistent index or a higher timeout. Follow-up: make the LSP request
+  timeout env-configurable (`VTS_LSP_TIMEOUT_MS`) + optionally wait for index-ready on huge trees.
 - **roslyn** (C#/.NET): `.sln/.csproj`. **✅ live-verified** against **Microsoft.CodeAnalysis.LanguageServer**
   (the real VS / C# Dev Kit engine), auto-detected from the VS Code C# extension bundle + its net10
   runtime; opens the workspace via `solution/open`/`project/open` then waits for
