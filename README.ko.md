@@ -66,14 +66,17 @@ vs-token-safer는 공식 엔진을 구동한다. 필요한 것을 설치한다:
 | 백엔드 | 언어 | 엔진 | 설치 | 필요 조건 |
 | --- | --- | --- | --- | --- |
 | `clangd` | C/C++ | clangd (LLVM) | [LLVM 릴리스](https://github.com/clangd/clangd/releases) 또는 패키지 매니저 | `compile_commands.json` |
-| `roslyn` | C#/.NET | `csharp-ls` (Roslyn) | `dotnet tool install --global csharp-ls` | `.sln` / `.csproj` |
+| `roslyn` | C#/.NET | **Microsoft.CodeAnalysis.LanguageServer** (Visual Studio / C# Dev Kit가 쓰는 엔진), `csharp-ls` 폴백 | **VS Code C# 확장**(`ms-dotnettools.csharp`) 설치 — 엔진+런타임 동봉; 또는 `dotnet tool install --global csharp-ls` | `.sln` / `.csproj` |
 
 **clangd는 컴파일 DB(`compile_commands.json`)가 필요하다:**
 - **Unreal Engine:** UBT로 생성 — `<UE>/Engine/Build/BatchFiles/RunUBT … -mode=GenerateClangDatabase`.
 - **CMake:** `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`로 구성.
 
-C#은 `csharp-ls` 대신 Visual Studio 정확 엔진을 원하면 `VTS_ROSLYN_CMD`/`VTS_ROSLYN_ARGS`를
-`Microsoft.CodeAnalysis.LanguageServer`로 지정한다.
+**C#은 공식 Visual Studio Roslyn 엔진을 자동 사용한다.** vs-token-safer가 VS Code C# 확장 번들에서
+`Microsoft.CodeAnalysis.LanguageServer`(와 맞는 .NET 런타임)를 자동 감지하고, `.sln`/`.csproj`를 열어
+프로젝트 로드를 기다린 뒤 질의한다 — 플래그 불필요. 특정 엔진을 쓰려면 `VTS_ROSLYN_DLL`(dll 경로),
+또는 다른 Roslyn LSP면 `VTS_ROSLYN_CMD`/`VTS_ROSLYN_ARGS`로 재정의한다. MS 엔진도 재정의도 없으면
+`csharp-ls`로 폴백한다.
 
 ---
 
@@ -115,7 +118,8 @@ vts savings | vts savings-reset
 | `backend` | `VTS_BACKEND` | auto | `clangd` \| `roslyn` (루트에서 자동 감지) |
 | `maxResults` | `VTS_MAX_RESULTS` | `60` | 반환 `file:line` 개수 상한 |
 | — | `VTS_CLANGD_CMD` / `VTS_CLANGD_ARGS` | `clangd` | clangd 실행 파일/인자 재정의 |
-| — | `VTS_ROSLYN_CMD` / `VTS_ROSLYN_ARGS` | `csharp-ls` | C# LSP 실행 파일/인자 재정의 |
+| — | `VTS_ROSLYN_DLL` | auto | 특정 `Microsoft.CodeAnalysis.LanguageServer.dll` 경로 |
+| — | `VTS_ROSLYN_CMD` / `VTS_ROSLYN_ARGS` | auto(MS 엔진) → `csharp-ls` | C# LSP 실행 파일/인자 재정의 |
 | — | `VTS_ENFORCE` | `1` | `0`/`false`/`off`이면 Bash 코드 grep 허용(탈출구) |
 
 자동 감지: `compile_commands.json`(또는 `.uproject`) → **clangd**; `.sln`/`.csproj` → **roslyn**.
@@ -136,8 +140,8 @@ vts savings | vts savings-reset
 
 | 백엔드 | 상태 | 비고 |
 | --- | --- | --- |
-| `clangd` (C/C++) | ✅ 주 타깃 | `compile_commands.json` 필요. Unreal은 UBT로 생성. |
-| `roslyn` (C#/.NET) | ⚠️ 베스트 에포트 | 기본 `csharp-ls`; 실제 `.sln` 대상 CI 라이브 검증 전. 필요 시 MS C# LSP로 재정의. |
+| `clangd` (C/C++) | ⚠️ 베스트 에포트 | 코드 경로+eval 검증됨; 실제 Unreal `compile_commands.json` 라이브 실행은 아직. 컴파일 DB 필요(Unreal은 UBT 생성). |
+| `roslyn` (C#/.NET) | ✅ 라이브 검증됨 | 실제 `.csproj` 대상 **Microsoft.CodeAnalysis.LanguageServer**(VS 실제 엔진)로 `search_symbol`/`find_references`/`goto_definition` 확인. 자동 감지, `csharp-ls` 폴백. |
 
 ---
 

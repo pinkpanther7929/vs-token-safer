@@ -50,8 +50,11 @@ Visual-Studio / IDE-agnostic sibling of `rider-mcp-enforcer`. Local-only. Ships 
 ## Backends
 - **clangd** (C++): needs `compile_commands.json` (Unreal: UBT `-mode=GenerateClangDatabase`). Build +
   live-verify this FIRST (the user's Unreal stack).
-- **roslyn** (C#/.NET): `.sln/.csproj`, default `csharp-ls`. Currently **⚠️ best-effort, unverified** —
-  mark as such until live-tested on a real `.sln`.
+- **roslyn** (C#/.NET): `.sln/.csproj`. **✅ live-verified** against **Microsoft.CodeAnalysis.LanguageServer**
+  (the real VS / C# Dev Kit engine), auto-detected from the VS Code C# extension bundle + its net10
+  runtime; opens the workspace via `solution/open`/`project/open` then waits for
+  `workspace/projectInitializationComplete` (see `backends/index.js` `afterInit`, `lsp.js`
+  `waitForNotification`). `csharp-ls` is the fallback. Overrides: `VTS_ROSLYN_DLL`, `VTS_ROSLYN_CMD/ARGS`.
 
 ## Next (see wiki "Status and TODO")
 P1 DONE: core rename, `index.js`/`sdk.js`/`ensure-deps.mjs`, grep-block `hooks/`, `skills/`+`commands/`,

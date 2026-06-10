@@ -75,6 +75,7 @@ async function getClient(root, backendName) {
   const b = BACKENDS[backendName];
   const c = new LspClient(b.cmd, b.args(root), { cwd: root });
   await c.initialize(root);
+  if (typeof b.afterInit === "function") await b.afterInit(c, root); // e.g. Roslyn solution/open + load wait
   clients.set(key, c);
   return c;
 }

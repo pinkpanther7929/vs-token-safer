@@ -23,6 +23,8 @@ export class LspClient {
     this.proc = null;
     this.nextId = 1;
     this.pending = new Map(); // id -> {resolve, reject}
+    this.notified = new Map(); // server-notification method -> latest params (for late waiters)
+    this.notifyWaiters = new Map(); // method -> [resolve, …]
     this.buf = Buffer.alloc(0);
     this.stderr = "";
     this._initialized = false;
@@ -73,11 +75,32 @@ export class LspClient {
       if (msg.error) p.reject(new Error(`LSP error ${msg.error.code}: ${msg.error.message}`));
       else p.resolve(msg.result);
     }
-    // Server-initiated requests/notifications (window/logMessage, client/registerCapability, …) are
-    // ignored except those that need a reply to avoid blocking the handshake.
+    // Server-initiated requests (have id + method) need a reply to avoid blocking the handshake.
     else if (msg.id !== undefined && msg.method) {
       this._send({ jsonrpc: "2.0", id: msg.id, result: null }); // benign default reply
     }
+    // Server notifications (method, no id): record the latest params and wake any waiters. Used to
+    // await load-complete signals like Roslyn's `workspace/projectInitializationComplete`.
+    else if (msg.method && msg.id === undefined) {
+      this.notified.set(msg.method, msg.params ?? null);
+      const waiters = this.notifyWaiters.get(msg.method);
+      if (waiters) {
+        this.notifyWaiters.delete(msg.method);
+        for (const resolve of waiters) resolve(msg.params ?? null);
+      }
+    }
+  }
+
+  // Resolve when the server next sends `method` (or immediately if already seen). Resolves null on
+  // timeout — best-effort, so a server that never emits the signal doesn't hang the caller forever.
+  waitForNotification(method, timeoutMs = 60000) {
+    if (this.notified.has(method)) return Promise.resolve(this.notified.get(method));
+    return new Promise((resolve) => {
+      const arr = this.notifyWaiters.get(method) || [];
+      const t = setTimeout(() => resolve(null), timeoutMs);
+      arr.push((v) => { clearTimeout(t); resolve(v); });
+      this.notifyWaiters.set(method, arr);
+    });
   }
 
   request(method, params, timeoutMs = 30000) {

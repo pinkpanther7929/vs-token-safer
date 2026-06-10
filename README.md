@@ -70,14 +70,18 @@ vs-token-safer drives an official engine; install the one(s) you need:
 | Backend | Language | Engine | Install | Needs |
 | --- | --- | --- | --- | --- |
 | `clangd` | C/C++ | clangd (LLVM) | [LLVM releases](https://github.com/clangd/clangd/releases) or your package manager | `compile_commands.json` |
-| `roslyn` | C#/.NET | `csharp-ls` (Roslyn) | `dotnet tool install --global csharp-ls` | `.sln` / `.csproj` |
+| `roslyn` | C#/.NET | **Microsoft.CodeAnalysis.LanguageServer** (the engine Visual Studio / the C# Dev Kit use), `csharp-ls` fallback | install the **VS Code C# extension** (`ms-dotnettools.csharp`) — bundles the engine + its runtime; or `dotnet tool install --global csharp-ls` | `.sln` / `.csproj` |
 
 **clangd needs a compile database** (`compile_commands.json`):
 - **Unreal Engine:** generate via UBT — `<UE>/Engine/Build/BatchFiles/RunUBT … -mode=GenerateClangDatabase`.
 - **CMake:** configure with `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`.
 
-For C#, point `VTS_ROSLYN_CMD`/`VTS_ROSLYN_ARGS` at `Microsoft.CodeAnalysis.LanguageServer` if you
-prefer the exact Visual Studio engine over `csharp-ls`.
+**C# uses the official Visual Studio Roslyn engine automatically.** vs-token-safer auto-detects
+`Microsoft.CodeAnalysis.LanguageServer` (and the matching .NET runtime) from the VS Code C# extension
+bundle, opens your `.sln`/`.csproj`, and waits for the project load before querying — no flags needed.
+Point `VTS_ROSLYN_DLL` at a specific `Microsoft.CodeAnalysis.LanguageServer.dll`, or
+`VTS_ROSLYN_CMD`/`VTS_ROSLYN_ARGS` at any other Roslyn LSP, to override. If neither the MS engine nor
+an override is found, it falls back to `csharp-ls`.
 
 ---
 
@@ -119,7 +123,8 @@ Precedence: **environment variable (`VTS_*`) > `~/.vs-token-safer/config.json` >
 | `backend` | `VTS_BACKEND` | auto | `clangd` \| `roslyn` (auto-detected from the root) |
 | `maxResults` | `VTS_MAX_RESULTS` | `60` | Cap on returned `file:line` locations |
 | — | `VTS_CLANGD_CMD` / `VTS_CLANGD_ARGS` | `clangd` | Override the clangd executable / args |
-| — | `VTS_ROSLYN_CMD` / `VTS_ROSLYN_ARGS` | `csharp-ls` | Override the C# LSP executable / args |
+| — | `VTS_ROSLYN_DLL` | auto | Path to a specific `Microsoft.CodeAnalysis.LanguageServer.dll` |
+| — | `VTS_ROSLYN_CMD` / `VTS_ROSLYN_ARGS` | auto (MS engine) → `csharp-ls` | Override the C# LSP executable / args |
 | — | `VTS_ENFORCE` | `1` | Set `0`/`false`/`off` to let Bash code-grep through (escape hatch) |
 
 Backend auto-detect: `compile_commands.json` (or a `.uproject`) → **clangd**; a `.sln`/`.csproj` →
@@ -142,8 +147,8 @@ unavailable, set `VTS_ENFORCE=0` so grep isn't blocked.
 
 | Backend | Status | Notes |
 | --- | --- | --- |
-| `clangd` (C/C++) | ✅ primary target | Needs `compile_commands.json`. Unreal: generate via UBT. |
-| `roslyn` (C#/.NET) | ⚠️ best-effort | Default `csharp-ls`; not yet live-verified against a real `.sln` in CI. Override to MS C# LSP if needed. |
+| `clangd` (C/C++) | ⚠️ best-effort | Code path + eval verified; not yet live-run on a real Unreal `compile_commands.json`. Needs the compile DB (Unreal: generate via UBT). |
+| `roslyn` (C#/.NET) | ✅ live-verified | `search_symbol` / `find_references` / `goto_definition` confirmed against **Microsoft.CodeAnalysis.LanguageServer** (the actual VS engine) on a real `.csproj`. Auto-detected; `csharp-ls` fallback. |
 
 ---
 
