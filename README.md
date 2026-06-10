@@ -147,7 +147,7 @@ unavailable, set `VTS_ENFORCE=0` so grep isn't blocked.
 
 | Backend | Status | Notes |
 | --- | --- | --- |
-| `clangd` (C/C++) | ⚠️ best-effort | Code path + eval verified; not yet live-run on a real Unreal `compile_commands.json`. Needs the compile DB (Unreal: generate via UBT). |
+| `clangd` (C/C++) | ✅ live-verified | `search_symbol` / `find_references` / `goto_definition` confirmed against real clangd on a `compile_commands.json` project. Needs a **correct** compile DB (with include dirs — Unreal: generate via UBT) so system/3rd-party headers resolve; otherwise only header-free symbols index. VS ships clangd at `…/VC/Tools/Llvm/bin/clangd.exe`. |
 | `roslyn` (C#/.NET) | ✅ live-verified | `search_symbol` / `find_references` / `goto_definition` confirmed against **Microsoft.CodeAnalysis.LanguageServer** (the actual VS engine) on a real `.csproj`. Auto-detected; `csharp-ls` fallback. |
 
 ---

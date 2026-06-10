@@ -97,6 +97,21 @@ export const BACKENDS = {
       "--header-insertion=never",
     ],
     detect: (root) => !!findShallow(root, /^compile_commands\.json$/) || exists(root, "*.uproject") || !!findShallow(root, /\.uproject$/, 1),
+    // clangd indexes asynchronously after launch; a one-shot CLI query would race (and kill) it
+    // before the index exists. Open the compile_commands TUs (+ nearby headers) so their symbols
+    // enter clangd's dynamic index, then wait until at least one file is parsed (publishDiagnostics)
+    // before the first query. Long-lived MCP use also benefits: the warm-up primes the index.
+    afterInit: async (client, root) => {
+      const cc = findShallow(root, /^compile_commands\.json$/);
+      let files = [];
+      if (cc) {
+        try { files = JSON.parse(fs.readFileSync(cc, "utf8")).map((e) => e.file).filter(Boolean); } catch { /* ignore */ }
+      }
+      const extra = findAllShallow(root, /\.(c|cc|cxx|cpp|h|hpp|hh|inl)$/i, 2);
+      const open = [...new Set([...files, ...extra])].slice(0, 100); // cap for huge trees
+      for (const f of open) client.didOpen(f, "cpp");
+      if (open.length) await client.waitForNotification("textDocument/publishDiagnostics", 30000);
+    },
   },
   // C#/.NET via a Roslyn-based LSP. Preferred engine: Microsoft.CodeAnalysis.LanguageServer (the exact
   // Roslyn LSP Visual Studio / the C# Dev Kit use), auto-detected from the VS Code C# extension bundle.

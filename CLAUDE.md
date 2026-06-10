@@ -48,8 +48,12 @@ Visual-Studio / IDE-agnostic sibling of `rider-mcp-enforcer`. Local-only. Ships 
 - Commit author: `JSungMin <jsm1505104@gmail.com>`. End commits with the Claude Code co-author line.
 
 ## Backends
-- **clangd** (C++): needs `compile_commands.json` (Unreal: UBT `-mode=GenerateClangDatabase`). Build +
-  live-verify this FIRST (the user's Unreal stack).
+- **clangd** (C++): needs `compile_commands.json` (Unreal: UBT `-mode=GenerateClangDatabase`).
+  **✅ live-verified** (search/refs/def) via VS-bundled clangd (`…/VC/Tools/Llvm/bin/clangd.exe`).
+  clangd indexes async → `afterInit` (`backends/index.js`) opens the compile_commands TUs + nearby
+  headers (cap 100) and waits for `textDocument/publishDiagnostics` before the first query. CAVEAT: a
+  compile DB without include dirs → system/3rd-party headers fail to resolve → only header-free symbols
+  index; UBT-generated DBs include the paths. Real Unreal project still user-specific to run.
 - **roslyn** (C#/.NET): `.sln/.csproj`. **✅ live-verified** against **Microsoft.CodeAnalysis.LanguageServer**
   (the real VS / C# Dev Kit engine), auto-detected from the VS Code C# extension bundle + its net10
   runtime; opens the workspace via `solution/open`/`project/open` then waits for

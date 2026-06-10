@@ -6,6 +6,7 @@
 // Roslyn from Microsoft) does the analysis; this thin, fully-owned glue speaks to it locally. No
 // third-party MCP glue runs over your source — only this file. Nothing leaves the machine.
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 
@@ -82,24 +83,41 @@ export class LspClient {
     // Server notifications (method, no id): record the latest params and wake any waiters. Used to
     // await load-complete signals like Roslyn's `workspace/projectInitializationComplete`.
     else if (msg.method && msg.id === undefined) {
-      this.notified.set(msg.method, msg.params ?? null);
+      const params = msg.params ?? null;
+      this.notified.set(msg.method, params);
       const waiters = this.notifyWaiters.get(msg.method);
-      if (waiters) {
-        this.notifyWaiters.delete(msg.method);
-        for (const resolve of waiters) resolve(msg.params ?? null);
+      if (waiters && waiters.length) {
+        const remain = [];
+        for (const w of waiters) { if (w.predicate(params)) w.resolve(params); else remain.push(w); }
+        if (remain.length) this.notifyWaiters.set(msg.method, remain);
+        else this.notifyWaiters.delete(msg.method);
       }
     }
   }
 
-  // Resolve when the server next sends `method` (or immediately if already seen). Resolves null on
-  // timeout — best-effort, so a server that never emits the signal doesn't hang the caller forever.
-  waitForNotification(method, timeoutMs = 60000) {
-    if (this.notified.has(method)) return Promise.resolve(this.notified.get(method));
+  // Resolve when the server next sends `method` whose params satisfy `predicate` (or immediately if
+  // a matching one was already seen). Resolves null on timeout — best-effort, so a server that never
+  // emits the signal doesn't hang the caller forever. Used to await load/index-complete signals
+  // (Roslyn `workspace/projectInitializationComplete`, clangd `$/progress` end / `publishDiagnostics`).
+  waitForNotification(method, timeoutMs = 60000, predicate = () => true) {
+    if (this.notified.has(method) && predicate(this.notified.get(method))) {
+      return Promise.resolve(this.notified.get(method));
+    }
     return new Promise((resolve) => {
       const arr = this.notifyWaiters.get(method) || [];
       const t = setTimeout(() => resolve(null), timeoutMs);
-      arr.push((v) => { clearTimeout(t); resolve(v); });
+      arr.push({ predicate, resolve: (v) => { clearTimeout(t); resolve(v); } });
       this.notifyWaiters.set(method, arr);
+    });
+  }
+
+  // Tell the server a document is open (forces clangd to parse + dynamically index that TU, so
+  // workspace/symbol returns its symbols without waiting for the full background index).
+  didOpen(filePath, languageId = "cpp") {
+    let text = "";
+    try { text = fs.readFileSync(filePath, "utf8"); } catch { return; }
+    this.notify("textDocument/didOpen", {
+      textDocument: { uri: toUri(filePath), languageId, version: 1, text },
     });
   }
 

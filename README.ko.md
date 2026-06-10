@@ -140,7 +140,7 @@ vts savings | vts savings-reset
 
 | 백엔드 | 상태 | 비고 |
 | --- | --- | --- |
-| `clangd` (C/C++) | ⚠️ 베스트 에포트 | 코드 경로+eval 검증됨; 실제 Unreal `compile_commands.json` 라이브 실행은 아직. 컴파일 DB 필요(Unreal은 UBT 생성). |
+| `clangd` (C/C++) | ✅ 라이브 검증됨 | `compile_commands.json` 프로젝트 대상 실제 clangd로 `search_symbol`/`find_references`/`goto_definition` 확인. **정확한** 컴파일 DB(include 경로 포함 — Unreal은 UBT 생성) 필요(그래야 시스템/서드파티 헤더 해석; 없으면 헤더 없는 심볼만 인덱싱). VS는 `…/VC/Tools/Llvm/bin/clangd.exe`에 clangd 동봉. |
 | `roslyn` (C#/.NET) | ✅ 라이브 검증됨 | 실제 `.csproj` 대상 **Microsoft.CodeAnalysis.LanguageServer**(VS 실제 엔진)로 `search_symbol`/`find_references`/`goto_definition` 확인. 자동 감지, `csharp-ls` 폴백. |
 
 ---
